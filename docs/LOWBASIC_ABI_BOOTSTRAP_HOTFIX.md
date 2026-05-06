@@ -33,14 +33,19 @@ Arquivo principal: `tools/baremetal/rafcode_phi/include/rafcode_phi_lowbasic.h`.
 - **Antes**: bootstrap e módulos dependiam de contratos implícitos/documentação dispersa.
 - **Depois**: existe um cabeçalho único de contrato lowbasic para passagem de estado entre estágios.
 
+## Status atualizado (2026-05-06)
+- ✅ Enum ABI explícito `RAFPHI_ARCH_ARMV7 = 4` adicionado no contrato (`rafcode_phi_abi.h`).
+- ✅ `nativeGetZip` agora faz seleção explícita por ABI (`AARCH64/ARMV7/X86_64/RISCV64/UNKNOWN`) sem fallback arm32→aarch64.
+- ✅ `rafphi_detect_native_arch()` cobre `__arm__`/`RMR_ARCH_ARM32` retornando `RAFPHI_ARCH_ARMV7`.
+- ✅ Gate de CI lowlevel passou a validar presença de `RAFPHI_ARCH_ARMV7` e ausência de legado `RAFPHI_ARCH_ARM` no bridge.
+
 ## O que ainda falta
-1. **Wire-up direto no boot path real**
-   - conectar `rafphi_boot_handoff_validate` no ponto de entrada do bootstrap nativo.
-2. **Teste integrado por ABI policy matrix**
-   - cobrir `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` com fixture de handoff inválido/valido.
+1. **Teste integrado por ABI policy matrix**
+   - cobertura mandatória: `arm64-v8a` e `armeabi-v7a` com fixture de handoff inválido/válido;
+   - `riscv64` permanece roadmap `unsupported` para bootstrap ativo.
 3. **Medição formal de overhead**
    - benchmark de latência por bloco (64B) comparando caminho anterior vs macro lowbasic.
-4. **Fallback explícito riscv64**
+4. **Fallback explícito riscv64 (roadmap unsupported para bootstrap ativo)**
    - ausência de macro lowbasic específica para `riscv64`.
 5. **Assinatura criptográfica do handoff**
    - atualmente há validação estrutural + CRC parcial; falta assinatura/autenticidade.

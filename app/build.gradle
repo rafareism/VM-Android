@@ -386,6 +386,17 @@ tasks.register("syncShellLoaderBootstrap") {
 tasks.named("preBuild").configure {
     dependsOn(tasks.named("syncShellLoaderBootstrap"))
     dependsOn(tasks.named("validateCriticalNativeAbiLayer"))
+    dependsOn(tasks.named("validateJniBootstrapZipSignature"))
+}
+
+tasks.register("validateJniBootstrapZipSignature", Exec) {
+    group = "verification"
+    description = "Valida assinatura ZIP (PK) do payload JNI quando TERMUX_BOOTSTRAP_MODE=embedded-zip."
+    workingDir = rootDir
+    commandLine "python3", "tools/ci/validate_jni_bootstrap_payload_signature.py",
+        "--mode", providers.gradleProperty("TERMUX_BOOTSTRAP_MODE").orElse("assets-loader").get(),
+        "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.c",
+        "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.S"
 }
 
 
@@ -1126,4 +1137,29 @@ dependencies {
     testImplementation 'org.mockito:mockito-inline:5.2.0'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+}
+
+def rafStrictAuditClaims = providers.environmentVariable("RAF_STRICT_AUDIT_CLAIMS").orElse("false").get().toBoolean()
+def rafRequireDeviceRuntime = providers.environmentVariable("RAF_REQUIRE_DEVICE_RUNTIME").orElse("false").get().toBoolean()
+def rafEnableVectraBench = providers.environmentVariable("RAF_ENABLE_VECTRA_BENCH").orElse("true").get().toBoolean()
+def rafRequireRmrEquivalence = providers.environmentVariable("RAF_REQUIRE_RMR_EQUIVALENCE").orElse("false").get().toBoolean()
+
+tasks.register('validateAuditClaims', Exec) {
+    commandLine 'bash', './scripts/validate_audit_claims.sh'
+    ignoreExitValue = !rafStrictAuditClaims
+}
+
+tasks.register('collectVectraGradeBenchmarks', Exec) {
+    onlyIf { rafEnableVectraBench }
+    commandLine 'bash', './scripts/collect_vectra_grade_benchmarks.sh'
+}
+
+tasks.register('validateRmrEquivalence', Exec) {
+    commandLine 'bash', './scripts/rmr_equivalence_check.sh'
+    ignoreExitValue = !rafRequireRmrEquivalence
+}
+
+tasks.register('deviceRuntimeSmoke', Exec) {
+    commandLine 'bash', './scripts/device_runtime_smoke.sh'
+    ignoreExitValue = !rafRequireDeviceRuntime
 }

@@ -1,3 +1,18 @@
+/*
+ * termux_bootstrap_bridge.c
+ *
+ * Papel do bridge:
+ * - Compatibilidade JNI: implementa TermuxInstaller#nativeGetZip() para retornar
+ *   payload ZIP embutido quando símbolos TERMUX_BOOTSTRAP_PAYLOAD_* forem injetados.
+ * - NÃO é a trilha oficial de release do bootstrap.
+ *
+ * Contrato oficial de bootstrap (release): TAR assets por ABI + loader.apk,
+ * validados por tools/verify_bootstrap_assets.py e tools/ci/verify_bootstrap_contract.sh.
+ *
+ * Este bridge deve permanecer estrito (sem payload sintético) e serve apenas como
+ * fallback controlado para cenários legados/compatibilidade.
+ */
+
 #include <errno.h>
 #include <jni.h>
 #include <limits.h>
@@ -7,6 +22,8 @@
 #include <string.h>
 
 #include <android/log.h>
+
+#include "../../../../tools/baremetal/rafcode_phi/include/rafcode_phi_lowbasic.h"
 
 #define TERMUX_BOOTSTRAP_TAG "termux-bootstrap"
 #define TERMUX_BOOTSTRAP_SYMBOL "Java_com_termux_app_TermuxInstaller_nativeGetZip"
@@ -54,6 +71,29 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
 
     const unsigned char* payload = get_embedded_bootstrap_data();
     const size_t payload_size = get_embedded_bootstrap_size();
+
+    rafphi_boot_handoff_t handoff = {0};
+    handoff.magic = RAFPHI_BOOT_MAGIC;
+    handoff.version = RAFPHI_BOOT_VERSION;
+#if defined(__aarch64__) || defined(RMR_ARCH_ARM64)
+    handoff.arch = RAFPHI_ARCH_AARCH64;
+#elif defined(__arm__) || defined(RMR_ARCH_ARM32)
+    handoff.arch = RAFPHI_ARCH_ARMV7;
+#elif defined(__x86_64__)
+    handoff.arch = RAFPHI_ARCH_X86_64;
+#elif defined(__riscv) && __riscv_xlen == 64
+    handoff.arch = RAFPHI_ARCH_RISCV64;
+#else
+    handoff.arch = RAFPHI_ARCH_UNKNOWN;
+#endif
+    handoff.in_ptr = (raf_u64)(uintptr_t)payload;
+    handoff.out_ptr = (raf_u64)(uintptr_t)payload;
+    handoff.words = (raf_u64)payload_size;
+    const raf_u32 handoff_status = rafphi_boot_handoff_validate(&handoff);
+    if ((handoff_status & RAFPHI_F_BOOT_OK) == 0u) {
+        LOGE("%s: lowbasic handoff validation failed status=0x%08x", TERMUX_BOOTSTRAP_SYMBOL, handoff_status);
+        return return_controlled_null("lowbasic handoff validate failed", "handoff");
+    }
 
     if (payload == NULL || payload_size == 0U) {
         if (payload == NULL) {

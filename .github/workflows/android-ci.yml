@@ -61,6 +61,8 @@ jobs:
       expect_perf_results: ${{ steps.flags.outputs.expect_perf_results }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - id: flags
         shell: bash
@@ -202,6 +204,8 @@ jobs:
     needs: resolve
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
       - name: Validate lowlevel ABI contract (mandatory gate)
         run: ./tools/ci/validate_lowlevel_abi.sh
 
@@ -215,6 +219,8 @@ jobs:
       VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Resolve canonical build versions
         shell: bash
@@ -277,15 +283,22 @@ jobs:
           ./tools/ci/prepare_android_env.sh --java-version "${JAVA_VERSION}" --ndk-version "${NDK_VERSION}" --require-sdkmanager
           ./tools/ci/verify_android_local_properties_contract.sh
 
-      - name: Enforce bootstrap assets contract
+      - name: Enforce bootstrap assets contract (strict)
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
-          ./tools/ci/verify_bootstrap_contract.sh \
+          ./tools/gradle_with_jdk21.sh \
+            :app:verifyShellLoaderArtifact \
             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
             -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
+          ./tools/ci/verify_bootstrap_contract.sh \
+            --strict \
+            -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+            -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
+
 
       - name: Resolve release signing contract
         id: signing
@@ -341,6 +354,16 @@ jobs:
             "${signing_args[@]}" \
             ${{ needs.resolve.outputs.gradle_tasks }}
 
+      - name: Verify Termux bootstrap ABI coverage
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        run: |
+          set -euo pipefail
+          ./tools/gradle_with_jdk21.sh :app:verifyTermuxBootstrapAbiCoverage             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}"             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}"             -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
+
+
+      - name: Validate lowbasic handoff ABI matrix
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        run: ./tools/ci/test_lowbasic_handoff_matrix.sh
       - name: Validate critical native binary freestanding policy
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_lowlevel_abi.sh --require-critical-binary
@@ -370,6 +393,14 @@ jobs:
             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
             -Psigning_mode="${effective_signing_mode}"
+
+      - name: Generate APK ABI/bootstrap inventory report
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_path="$(find app/build/outputs/apk -type f -name "*.apk" | head -n1)"
+          python3 tools/ci/generate_apk_abi_bootstrap_inventory.py --apk "${apk_path}" --out reports/APK_ABI_BOOTSTRAP_INVENTORY.md
 
       - name: Run lint
         if: inputs.run_lint
@@ -450,6 +481,16 @@ jobs:
             expect_perf_results=true
           fi
 
+          mkdir -p ci-artifacts/android-reports
+          for report in reports/APK_ABI_BOOTSTRAP_INVENTORY.md reports/CANONICAL_BUILD_STATUS.md; do
+            if [[ -f "$report" ]]; then
+              cp -a "$report" ci-artifacts/android-reports/
+            fi
+          done
+          if [[ -f tools/verify_bootstrap_assets.py ]]; then
+            python3 tools/verify_bootstrap_assets.py > ci-artifacts/android-reports/bootstrap-assets-verification.log 2>&1 || true
+          fi
+
           APP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
           SUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
           PERF_RUNS="${perf_runs}" \
@@ -487,6 +528,15 @@ jobs:
         with:
           name: native-matrix-${{ needs.resolve.outputs.lane_label }}
           path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane_label }}/**
+          if-no-files-found: warn
+
+
+      - name: Upload Android reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-reports-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/android-reports/**
           if-no-files-found: warn
 
       - name: Upload APK report

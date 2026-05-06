@@ -1,27 +1,17 @@
 # BETA_APK_ABI_BOOTSTRAP_REPORT
 
-Data: 2026-05-05 (UTC)
+## STATUS: BETA_BLOCKED (inventário depende de APK gerado no commit corrente)
 
-## Comandos alvo da fase
+## Evidências obrigatórias
+- **Arquivo**: bibliotecas JNI por ABI em `app/src/main/jniLibs/{armeabi-v7a,arm64-v8a,x86,x86_64}/libXlorie.so`.
+- **Task Gradle**: `:app:checkNativeExtendedMatrix`, `:app:checkNativeAllMatrix`, `:app:verifyDeliveredCompiledArtifacts`.
+- **Script/CI**: `.github/workflows/android-native-ci.yml` roda assemble para `debug`/`release` com política ABI parametrizada.
 
-1. `./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=arm32-arm64 -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a -PCI_INTERNAL_VALIDATION=true -Psigning_mode=unsigned :app:assembleDebug`
-2. `./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=arm32-arm64 -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a -PCI_INTERNAL_VALIDATION=true :app:verifyTermuxBootstrapAbiCoverage`
+## Critério para fechamento
+- Matriz ABI está definida no build e no CI.
+- Verificação de artefatos compilados foi formalizada para impedir release sem saída binária.
 
-## Resultado real no ambiente atual
 
-- **BLOQUEADO**: Android SDK ausente (`ANDROID_SDK_ROOT/ANDROID_HOME` não definidos e sem fallback).
-- Sem APK gerado nesta execução.
-- Sem inventário final de libs/assets dentro do APK nesta execução.
-
-## Pré-condições para fechar esta fase
-
-- Configurar SDK (`local.properties` com `sdk.dir` ou `ANDROID_SDK_ROOT`).
-- Reexecutar comandos acima.
-- Validar no APK:
-  - `lib/arm64-v8a/libtermux-bootstrap.so`
-  - `lib/armeabi-v7a/libtermux-bootstrap.so`
-  - `lib/arm64-v8a/libvectra_core_accel.so`
-  - `lib/armeabi-v7a/libvectra_core_accel.so`
-  - `assets/bootstrap/arm64-v8a.tar`
-  - `assets/bootstrap/armeabi-v7a.tar`
-  - `assets/bootstrap/loader.apk` (versionado ou via generated assets)
+## Estado no commit corrente (2026-05-06)
+- A geração de inventário final depende de APK produzido no commit corrente (`reports/APK_ABI_BOOTSTRAP_INVENTORY.md`).
+- Sem Android SDK no ambiente local desta execução, o APK não foi recompilado aqui; manter status bloqueado até CI canônico publicar o inventário.
