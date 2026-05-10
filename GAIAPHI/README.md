@@ -8,6 +8,7 @@ Divisões do conteúdo solicitado em estrutura organizada.
 - `versao_media.md`
 - `versao_expandida.md`
 - `rafael_divisoes.md` (arquivo único com as três divisões)
+- `mapa_operacional.md`
 
 ## Pasta de divisões
 
