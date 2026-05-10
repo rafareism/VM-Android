@@ -15,4 +15,12 @@ Divisões do conteúdo solicitado em estrutura organizada.
 - `divisoes/01_versao_curta.md`
 - `divisoes/02_versao_media.md`
 - `divisoes/03_versao_expandida.md`
-- `divisoes/04_mapa_operacional.md`
+
+## Divisão detalhada por parágrafo
+
+Também disponível em `GAIAPHI/divisoes/README.md` e subpastas `curta/`, `media/` e `expandida/`.
+
+## Build Android (CI/local)
+
+- Script: `tools/ci/build_apk_matrix.sh`
+- Workflow: `.github/workflows/gaiaphi-android-build.yml`

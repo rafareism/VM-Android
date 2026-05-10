@@ -45,6 +45,8 @@ concurrency:
 jobs:
   resolve:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
       artifact_variants: ${{ steps.flags.outputs.artifact_variants }}
@@ -104,6 +106,12 @@ jobs:
               signing_mode="signed"
               abi_profile="official_arm64"
               ;;
+            release-signed-official-arm32-arm64)
+              run_workfile="release_gate"
+              build_variant="release"
+              signing_mode="signed"
+              abi_profile="official_arm32_arm64"
+              ;;
             *)
               echo "ci_lane inválida: ${ci_lane}" >&2
               exit 1
@@ -118,6 +126,11 @@ jobs:
 
           if [[ "${ci_lane}" == "release-signed-official" && "${abi_profile}" != "official_arm64" ]]; then
             echo "release-signed-official must resolve to abi_profile=official_arm64; got ${abi_profile}" >&2
+            exit 1
+          fi
+
+          if [[ "${ci_lane}" == "release-signed-official-arm32-arm64" && "${abi_profile}" != "official_arm32_arm64" ]]; then
+            echo "release-signed-official-arm32-arm64 must resolve to abi_profile=official_arm32_arm64; got ${abi_profile}" >&2
             exit 1
           fi
 
@@ -201,6 +214,8 @@ jobs:
 
   abi-contract-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: resolve
     steps:
       - uses: actions/checkout@v4
@@ -211,6 +226,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [resolve, abi-contract-gate]
     env:
       VECTRAS_RELEASE_STORE_FILE: ${{ secrets.VECTRAS_RELEASE_STORE_FILE }}

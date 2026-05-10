@@ -58,6 +58,7 @@ on:
           - debug-internal-arm32-arm64
           - release-unsigned-internal
           - release-signed-official
+          - release-signed-official-arm32-arm64
       run_workfile:
         description: "Perfil de execução Gradle"
         type: choice
@@ -114,6 +115,8 @@ jobs:
   resolve-inputs:
     name: Resolve wrapper inputs
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       run_workfile: ${{ steps.resolve.outputs.run_workfile }}
       ci_lane: ${{ steps.resolve.outputs.ci_lane }}
@@ -159,6 +162,8 @@ jobs:
   android-ci:
     name: Android CI (canonical)
     needs: resolve-inputs
+    permissions:
+      contents: read
     uses: ./.github/workflows/android-ci.yml
     with:
       run_workfile: ${{ needs.resolve-inputs.outputs.run_workfile }}
@@ -175,6 +180,8 @@ jobs:
   compile-matrix-gate:
     name: Compile Matrix (adaptive gate)
     if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.run_workfile == 'compat_matrix_debug' || startsWith(github.event.inputs.abi_profile, 'internal_')) }}
+    permissions:
+      contents: read
     uses: ./.github/workflows/compile-matrix.yml
     with:
       run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
@@ -184,6 +191,8 @@ jobs:
   adaptive-gates:
     name: Adaptive Gates
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [android-ci, compile-matrix-gate]
     if: always()
     steps:
