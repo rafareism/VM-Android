@@ -18,7 +18,7 @@
 | Workflow | Quando roda | Papel |
 |---|---|---|
 | `.github/workflows/android.yml` | `push`, `pull_request`, `workflow_dispatch` | Wrapper de entrada Android; delega para `android-ci.yml` (sem redefinir política oficial). |
-| `.github/workflows/ci.yml` | múltiplos eventos | Wrapper legado/compatível para encaminhar trilha host canônica. |
+| `.github/workflows/ci.yml` | `push`/`pull_request` em `main`, `master`, `dev`, `release/**`; `workflow_dispatch`; `workflow_call` | Wrapper legado/compatível ativo para encaminhar trilha host canônica com a mesma política de branches do wrapper Android. |
 
 ### 3) Auxiliar técnico
 

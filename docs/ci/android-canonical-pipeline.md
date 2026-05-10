@@ -48,6 +48,7 @@ As trilhas de release mantêm validações rígidas de side-by-side ABI e assina
 
 - Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
 - Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Alias legado host ainda ativo: `.github/workflows/ci.yml` (wrapper para `host-ci.yml`, com gatilhos `push`/`pull_request` alinhados em `main`, `master`, `dev`, `release/**`).
 - Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
 - Pipeline oficial Host: `.github/workflows/host-ci.yml`.
 - Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
