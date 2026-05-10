@@ -45,6 +45,8 @@ concurrency:
 jobs:
   resolve:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
       artifact_variants: ${{ steps.flags.outputs.artifact_variants }}
@@ -212,6 +214,8 @@ jobs:
 
   abi-contract-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: resolve
     steps:
       - uses: actions/checkout@v4
@@ -222,6 +226,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [resolve, abi-contract-gate]
     env:
       VECTRAS_RELEASE_STORE_FILE: ${{ secrets.VECTRAS_RELEASE_STORE_FILE }}
