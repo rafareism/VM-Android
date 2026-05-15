@@ -207,16 +207,27 @@ if [[ "${GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE:-false}" == "true" ]]; then
 fi
 
 set +e
-./gradlew "$@"
-wrapper_exit=$?
+wrapper_log_file="$(mktemp -t gradle-wrapper-log.XXXXXX)"
+./gradlew "$@" 2>&1 | tee "$wrapper_log_file"
+wrapper_exit=${PIPESTATUS[0]}
 set -e
 if [[ $wrapper_exit -eq 0 ]]; then
+  rm -f "$wrapper_log_file"
   exit 0
 fi
 
-if command -v gradle >/dev/null 2>&1; then
-  echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); fallback para gradle do host."
+should_fallback_to_system_gradle=false
+if [[ -f "$wrapper_log_file" ]]; then
+  if grep -Eqi '(Could not download|Download failed|distributionUrl|Could not (GET|HEAD)|Read timed out|Connection timed out|UnknownHostException|PKIX path building failed|Received status code [45][0-9]{2}|407 Proxy Authentication Required|403 Forbidden)' "$wrapper_log_file"; then
+    should_fallback_to_system_gradle=true
+  fi
+fi
+
+if [[ "$should_fallback_to_system_gradle" == "true" ]] && command -v gradle >/dev/null 2>&1; then
+  echo "[gradle_with_jdk21] gradlew falhou na etapa de bootstrap/download (exit=${wrapper_exit}); fallback para gradle do host."
+  rm -f "$wrapper_log_file"
   exec gradle "$@"
 fi
 
+rm -f "$wrapper_log_file"
 exit "$wrapper_exit"
