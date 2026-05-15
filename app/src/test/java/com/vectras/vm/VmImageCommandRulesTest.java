@@ -21,4 +21,12 @@ public class VmImageCommandRulesTest {
         assertFalse(VmImageCommandRules.isRawImageSizeTokenSafe("1p"));
         assertFalse(VmImageCommandRules.isRawImageSizeTokenSafe("1e"));
     }
+    @Test
+    public void isRawImageSizeTokenSafe_rejectsNonNumericTokens() {
+        assertFalse(VmImageCommandRules.isRawImageSizeTokenSafe("abc"));
+        assertFalse(VmImageCommandRules.isRawImageSizeTokenSafe("1gb"));
+        assertFalse(VmImageCommandRules.isRawImageSizeTokenSafe("1 g"));
+        assertFalse(VmImageCommandRules.isRawImageSizeTokenSafe("-1g"));
+    }
+
 }
