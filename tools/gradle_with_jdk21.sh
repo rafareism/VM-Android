@@ -197,4 +197,37 @@ if should_require_android_sdk "$@" && [[ -x "$REPO_ROOT/tools/check_android_tool
 fi
 
 cd "$REPO_ROOT"
-exec ./gradlew "$@"
+if [[ "${GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE:-false}" == "true" ]]; then
+  if command -v gradle >/dev/null 2>&1; then
+    echo "[gradle_with_jdk21] GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true; executando gradle do host."
+    exec gradle "$@"
+  fi
+  echo "ERRO: GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true, mas 'gradle' não foi encontrado no PATH." >&2
+  exit 5
+fi
+
+set +e
+wrapper_log_file="$(mktemp -t gradle-wrapper-log.XXXXXX)"
+./gradlew "$@" 2>&1 | tee "$wrapper_log_file"
+wrapper_exit=${PIPESTATUS[0]}
+set -e
+if [[ $wrapper_exit -eq 0 ]]; then
+  rm -f "$wrapper_log_file"
+  exit 0
+fi
+
+should_fallback_to_system_gradle=false
+if [[ -f "$wrapper_log_file" ]]; then
+  if grep -Eqi '(Could not download|Download failed|distributionUrl|Could not (GET|HEAD)|Read timed out|Connection timed out|UnknownHostException|PKIX path building failed|Received status code [45][0-9]{2}|407 Proxy Authentication Required|403 Forbidden)' "$wrapper_log_file"; then
+    should_fallback_to_system_gradle=true
+  fi
+fi
+
+if [[ "$should_fallback_to_system_gradle" == "true" ]] && command -v gradle >/dev/null 2>&1; then
+  echo "[gradle_with_jdk21] gradlew falhou na etapa de bootstrap/download (exit=${wrapper_exit}); fallback para gradle do host."
+  rm -f "$wrapper_log_file"
+  exec gradle "$@"
+fi
+
+rm -f "$wrapper_log_file"
+exit "$wrapper_exit"
