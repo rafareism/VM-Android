@@ -100,3 +100,14 @@ sed -n '1,120p' app/FILES_MAP.md
 ```
 
 A rotina executa `assembleRelease` e `verifyDeliveredCompiledArtifacts` com política ABI `arm32-arm64`.
+
+### Python para validações JNI/ABI no Gradle
+- A task `validateJniBootstrapZipSignature` resolve o interpretador nesta ordem:
+  1. `-PvectraPython=/caminho/python3`
+  2. `PYTHON`
+  3. `PYTHON3`
+  4. fallback automático `python3` / `python`
+- Em ambientes Windows+Git Bash/CI híbrido, prefira fixar explicitamente:
+```bash
+./gradlew :app:validateJniBootstrapZipSignature -PvectraPython=/usr/bin/python3
+```

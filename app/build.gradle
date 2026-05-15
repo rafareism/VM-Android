@@ -389,14 +389,54 @@ tasks.named("preBuild").configure {
     dependsOn(tasks.named("validateJniBootstrapZipSignature"))
 }
 
+def resolvePythonCommandLine = {
+    def candidates = [] as List<String>
+    def fromGradleProp = providers.gradleProperty("vectraPython").orNull
+    if (fromGradleProp != null && fromGradleProp.trim()) {
+        candidates.add(fromGradleProp.trim())
+    }
+    def fromEnv = System.getenv("PYTHON")
+    if (fromEnv != null && fromEnv.trim()) {
+        candidates.add(fromEnv.trim())
+    }
+    def fromEnv3 = System.getenv("PYTHON3")
+    if (fromEnv3 != null && fromEnv3.trim()) {
+        candidates.add(fromEnv3.trim())
+    }
+    candidates.addAll(["python3", "python"])
+    def seen = new LinkedHashSet<String>()
+    for (candidate in candidates) {
+        if (!candidate || !seen.add(candidate)) {
+            continue
+        }
+        try {
+            def result = exec {
+                commandLine candidate, "--version"
+                standardOutput = new ByteArrayOutputStream()
+                errorOutput = new ByteArrayOutputStream()
+                ignoreExitValue = true
+            }
+            if (result.exitValue == 0) {
+                return candidate
+            }
+        } catch (Exception ignored) {
+        }
+    }
+    throw new GradleException("Nenhum interpretador Python encontrado. Defina -PvectraPython=/caminho/python3 ou variável de ambiente PYTHON/PYTHON3.")
+}
+
 tasks.register("validateJniBootstrapZipSignature", Exec) {
     group = "verification"
     description = "Valida assinatura ZIP (PK) do payload JNI quando TERMUX_BOOTSTRAP_MODE=embedded-zip."
     workingDir = rootDir
-    commandLine "python3", "tools/ci/validate_jni_bootstrap_payload_signature.py",
-        "--mode", providers.gradleProperty("TERMUX_BOOTSTRAP_MODE").orElse("assets-loader").get(),
-        "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.c",
-        "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.S"
+    doFirst {
+        def pythonCmd = resolvePythonCommandLine()
+        logger.lifecycle("validateJniBootstrapZipSignature: usando interpretador Python '${pythonCmd}'.")
+        commandLine pythonCmd, "tools/ci/validate_jni_bootstrap_payload_signature.py",
+            "--mode", providers.gradleProperty("TERMUX_BOOTSTRAP_MODE").orElse("assets-loader").get(),
+            "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.c",
+            "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.S"
+    }
 }
 
 
