@@ -197,4 +197,26 @@ if should_require_android_sdk "$@" && [[ -x "$REPO_ROOT/tools/check_android_tool
 fi
 
 cd "$REPO_ROOT"
-exec ./gradlew "$@"
+if [[ "${GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE:-false}" == "true" ]]; then
+  if command -v gradle >/dev/null 2>&1; then
+    echo "[gradle_with_jdk21] GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true; executando gradle do host."
+    exec gradle "$@"
+  fi
+  echo "ERRO: GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true, mas 'gradle' não foi encontrado no PATH." >&2
+  exit 5
+fi
+
+set +e
+./gradlew "$@"
+wrapper_exit=$?
+set -e
+if [[ $wrapper_exit -eq 0 ]]; then
+  exit 0
+fi
+
+if command -v gradle >/dev/null 2>&1; then
+  echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); fallback para gradle do host."
+  exec gradle "$@"
+fi
+
+exit "$wrapper_exit"
