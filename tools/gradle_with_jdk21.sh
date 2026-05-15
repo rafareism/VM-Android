@@ -110,6 +110,28 @@ should_require_android_sdk() {
   return 1
 }
 
+is_metadata_only_invocation() {
+  local has_meaningful_arg=false
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --version|-v|--help|-h|help|tasks|properties|projects|dependencies|dependencyInsight)
+        ;;
+      --*)
+        ;;
+      *)
+        has_meaningful_arg=true
+        break
+        ;;
+    esac
+  done
+
+  if [[ "$has_meaningful_arg" == "true" ]]; then
+    return 1
+  fi
+  return 0
+}
+
 java_major_of() {
   local java_bin="$1"
   "$java_bin" -XshowSettings:properties -version 2>&1 | awk -F= '/java\.specification\.version/ {gsub(/ /,"",$2); print $2; exit}'
@@ -197,4 +219,29 @@ if should_require_android_sdk "$@" && [[ -x "$REPO_ROOT/tools/check_android_tool
 fi
 
 cd "$REPO_ROOT"
-exec ./gradlew "$@"
+if [[ "${GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE:-false}" == "true" ]]; then
+  if command -v gradle >/dev/null 2>&1; then
+    echo "[gradle_with_jdk21] GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true; executando gradle do host."
+    exec gradle "$@"
+  fi
+  echo "ERRO: GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true, mas 'gradle' não foi encontrado no PATH." >&2
+  exit 5
+fi
+
+set +e
+./gradlew "$@"
+wrapper_exit=$?
+set -e
+if [[ $wrapper_exit -eq 0 ]]; then
+  exit 0
+fi
+
+if command -v gradle >/dev/null 2>&1; then
+  if is_metadata_only_invocation "$@"; then
+    echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); fallback para gradle do host permitido para comando de metadata."
+    exec gradle "$@"
+  fi
+  echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); sem fallback automático para tasks de build/test para preservar paridade de distribuição. Use GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true apenas para validação interna explícita." >&2
+fi
+
+exit "$wrapper_exit"

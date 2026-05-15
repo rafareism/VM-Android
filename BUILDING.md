@@ -129,6 +129,13 @@ python3 tools/verify_bootstrap_assets.py
 
 > Use `./tools/gradle_with_jdk21.sh` como comando canônico: o wrapper aplica a política de JVM suportada (17/21) e faz autoajuste de `sdk.dir` quando possível.
 
+### Fallback offline do Gradle wrapper
+- Se `./gradlew` falhar por indisponibilidade de rede/proxy ao baixar a distribuição, `./tools/gradle_with_jdk21.sh` faz fallback automático para `gradle` do host **somente** em comandos de metadata (`--version`, `help`, `tasks`, `properties`, `projects`, `dependencies`, `dependencyInsight`), preservando paridade da trilha oficial para build/test/release.
+- Para forçar explicitamente esse caminho (sem tentar `./gradlew`), use:
+  ```bash
+  GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true ./tools/gradle_with_jdk21.sh :app:assembleDebug
+  ```
+
 
 
 ## Matriz local de artefatos (arm32+arm64, signed + unsigned)
