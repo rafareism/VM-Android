@@ -1,0 +1,16 @@
+config:
+  default: false
+  MD026: true
+
+globs:
+  - "**/*.md"
+  - "!node_modules/**"
+  - "!build/**"
+  - "!archive/**"
+  - "!_incoming/**"
+  - "!.ci/**"
+  - "!bug/**"
+  - "!addthis/**"
+  - "!33.md"
+  - "!rafael.md"
+  - "!VECTRA_CORE.md"

@@ -14,6 +14,10 @@ final class VmImageCommandRules {
             return false;
         }
 
+        if (!token.matches("^[0-9]+[kmgtpe]?$")) {
+            return false;
+        }
+
         if (token.endsWith("t") || token.endsWith("p") || token.endsWith("e")) {
             return false;
         }

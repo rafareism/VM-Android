@@ -110,6 +110,28 @@ should_require_android_sdk() {
   return 1
 }
 
+is_metadata_only_invocation() {
+  local has_meaningful_arg=false
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --version|-v|--help|-h|help|tasks|properties|projects|dependencies|dependencyInsight)
+        ;;
+      --*)
+        ;;
+      *)
+        has_meaningful_arg=true
+        break
+        ;;
+    esac
+  done
+
+  if [[ "$has_meaningful_arg" == "true" ]]; then
+    return 1
+  fi
+  return 0
+}
+
 java_major_of() {
   local java_bin="$1"
   "$java_bin" -XshowSettings:properties -version 2>&1 | awk -F= '/java\.specification\.version/ {gsub(/ /,"",$2); print $2; exit}'
@@ -216,17 +238,12 @@ if [[ $wrapper_exit -eq 0 ]]; then
   exit 0
 fi
 
-should_fallback_to_system_gradle=false
-if [[ -f "$wrapper_log_file" ]]; then
-  if grep -Eqi '(Could not download|Download failed|distributionUrl|Could not (GET|HEAD)|Read timed out|Connection timed out|UnknownHostException|PKIX path building failed|Received status code [45][0-9]{2}|407 Proxy Authentication Required|403 Forbidden)' "$wrapper_log_file"; then
-    should_fallback_to_system_gradle=true
+if command -v gradle >/dev/null 2>&1; then
+  if is_metadata_only_invocation "$@"; then
+    echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); fallback para gradle do host permitido para comando de metadata."
+    exec gradle "$@"
   fi
-fi
-
-if [[ "$should_fallback_to_system_gradle" == "true" ]] && command -v gradle >/dev/null 2>&1; then
-  echo "[gradle_with_jdk21] gradlew falhou na etapa de bootstrap/download (exit=${wrapper_exit}); fallback para gradle do host."
-  rm -f "$wrapper_log_file"
-  exec gradle "$@"
+  echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); sem fallback automático para tasks de build/test para preservar paridade de distribuição. Use GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true apenas para validação interna explícita." >&2
 fi
 
 rm -f "$wrapper_log_file"
