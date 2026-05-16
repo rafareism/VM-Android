@@ -229,10 +229,12 @@ if [[ "${GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE:-false}" == "true" ]]; then
 fi
 
 set +e
-./gradlew "$@"
-wrapper_exit=$?
+wrapper_log_file="$(mktemp -t gradle-wrapper-log.XXXXXX)"
+./gradlew "$@" 2>&1 | tee "$wrapper_log_file"
+wrapper_exit=${PIPESTATUS[0]}
 set -e
 if [[ $wrapper_exit -eq 0 ]]; then
+  rm -f "$wrapper_log_file"
   exit 0
 fi
 
@@ -244,4 +246,5 @@ if command -v gradle >/dev/null 2>&1; then
   echo "[gradle_with_jdk21] gradlew falhou (exit=${wrapper_exit}); sem fallback automático para tasks de build/test para preservar paridade de distribuição. Use GRADLE_WITH_JDK21_FORCE_SYSTEM_GRADLE=true apenas para validação interna explícita." >&2
 fi
 
+rm -f "$wrapper_log_file"
 exit "$wrapper_exit"
